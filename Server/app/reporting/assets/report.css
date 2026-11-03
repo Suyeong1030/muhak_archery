@@ -1,0 +1,11 @@
+:root {
+  /* These values will be populated from ReportTheme by the renderer. */
+  --report-background: #f4f1e8;
+  --report-surface: #fffdf8;
+  --report-text: #17211b;
+  --report-primary: #214d3d;
+}
+
+* { box-sizing: border-box; }
+html, body, .report-page { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { color: var(--report-text); background: var(--report-background); }

@@ -1,0 +1,65 @@
+{
+  "_comment": "전문가 레퍼런스 자세에서 캘리브레이션한 각도 기준. 데모용 룰베이스. 값만 고치면 코드 수정 없이 튜닝된다. handedness/카메라 정면 가정.",
+  "handedness": "right",
+  "rules": [
+    {
+      "feature": "torso_tilt_deg",
+      "type": "abs_max",
+      "limit": 8.0,
+      "priority": 1,
+      "code": "TORSO_TILT",
+      "message": "상체를 수직으로 세워주세요."
+    },
+    {
+      "feature": "shoulder_tilt_deg",
+      "type": "abs_max",
+      "limit": 7.0,
+      "priority": 2,
+      "code": "SHOULDER_TILT",
+      "message": "양쪽 어깨 높이를 맞춰주세요."
+    },
+    {
+      "feature": "draw_elbow_angle_deg",
+      "type": "range",
+      "min": 150.0,
+      "max": 180.0,
+      "priority": 3,
+      "code": "DRAW_ELBOW",
+      "message": "당기는 팔꿈치를 화살 선에 맞춰주세요."
+    },
+    {
+      "feature": "anchor_distance",
+      "type": "range",
+      "min": 0.0,
+      "max": 0.45,
+      "priority": 4,
+      "code": "ANCHOR_LOOSE",
+      "message": "손을 턱 근처로 더 붙여 앵커를 잡으세요."
+    },
+    {
+      "feature": "stability",
+      "type": "min",
+      "limit": 0.65,
+      "priority": 5,
+      "code": "LOW_STABILITY",
+      "message": "움직임을 줄이고 자세를 유지하세요."
+    },
+    {
+      "feature": "stance_width_ratio",
+      "type": "range",
+      "min": 0.75,
+      "max": 1.25,
+      "priority": 6,
+      "code": "STANCE_WIDTH",
+      "message": "발 간격을 어깨너비에 가깝게 맞추세요."
+    },
+    {
+      "feature": "foot_angle_diff_deg",
+      "type": "abs_max",
+      "limit": 20.0,
+      "priority": 7,
+      "code": "FOOT_ASYMMETRY",
+      "message": "양발의 방향 차이가 큽니다. 발을 대체로 평행하게 두세요."
+    }
+  ]
+}

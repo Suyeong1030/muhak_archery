@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARTEMIS XR Report Panel</title>
+  <style>
+    :root { --bg:#101915; --panel:#f4f1e8; --ink:#17211b; --muted:#6e766f; --green:#214d3d; --mint:#73c7a1; --amber:#e4ad55; --coral:#db765f; --line:#d9d6cd; }
+    * { box-sizing:border-box; }
+    html, body { width:100%; height:100%; margin:0; }
+    body { display:grid; place-items:center; overflow:hidden; color:var(--ink); background:radial-gradient(circle at 50% 40%, #263a31, var(--bg) 70%); font-family:Pretendard,"Noto Sans KR",system-ui,sans-serif; }
+    button { font:inherit; }
+
+    /* 16:9 Unity world-space canvas를 가정한 고정 비율 패널 */
+    .xr-panel { width:min(1120px,94vw); aspect-ratio:16/8.35; max-height:92vh; display:grid; grid-template-rows:76px 1fr 54px; overflow:hidden; border:1px solid rgba(255,255,255,.25); border-radius:28px; background:var(--panel); box-shadow:0 28px 80px rgba(0,0,0,.46); }
+    header { display:flex; align-items:center; justify-content:space-between; padding:0 28px; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:13px; }
+    .mark { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; color:white; background:var(--green); font:700 14px Georgia,serif; }
+    .brand b { display:block; font-size:15px; letter-spacing:.08em; }
+    .brand span, .session { color:var(--muted); font-size:11px; }
+    .session { text-align:right; line-height:1.5; }
+
+    .viewport { position:relative; min-height:0; overflow:hidden; }
+    .slide { position:absolute; inset:0; padding:24px 28px; opacity:0; visibility:hidden; transform:translateX(28px); transition:.24s ease; }
+    .slide.active { opacity:1; visibility:visible; transform:none; }
+    .slide h1 { margin:0; font:500 30px/1.08 Georgia,serif; }
+    .kicker { margin-bottom:6px; color:var(--green); font-size:10px; font-weight:900; letter-spacing:.16em; }
+    .sub { margin:6px 0 0; color:var(--muted); font-size:12px; }
+
+    .summary-grid { height:100%; display:grid; grid-template-columns:1.25fr .75fr; gap:20px; }
+    .coach { display:flex; flex-direction:column; min-width:0; }
+    .quote { flex:1; display:grid; align-content:center; margin-top:18px; padding:22px 25px; border-radius:18px; color:white; background:var(--green); }
+    .quote p { margin:0; font-size:18px; line-height:1.55; }
+    .quote strong { color:#a8e0c7; }
+    .score-side { display:grid; grid-template-rows:1fr auto; gap:14px; }
+    .total { display:grid; place-items:center; text-align:center; border:1px solid var(--line); border-radius:18px; background:#fffdf8; }
+    .total b { display:block; font:500 66px/.9 Georgia,serif; }
+    .total span { color:var(--muted); font-size:12px; }
+    .mini-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .mini { padding:11px 8px; text-align:center; border-radius:13px; background:#e8e4da; }
+    .mini span { display:block; color:var(--muted); font-size:9px; }
+    .mini b { font:500 18px/1.5 Georgia,serif; }
+
+    .sensor-layout { height:100%; display:grid; grid-template-columns:1fr 190px; gap:18px; }
+    .chart-card, .side-card, .pose-card, .result-card { border:1px solid var(--line); border-radius:18px; background:#fffdf8; }
+    .chart-card { min-width:0; padding:18px 20px 12px; }
+    .chart-head { display:flex; justify-content:space-between; align-items:start; }
+    .legend { display:flex; gap:12px; color:var(--muted); font-size:10px; }
+    .dot { display:inline-block; width:7px; height:7px; margin-right:4px; border-radius:50%; }
+    svg { display:block; width:100%; height:220px; margin-top:4px; }
+    svg text { fill:var(--muted); font-size:9px; }
+    .side-card { padding:18px; display:flex; flex-direction:column; justify-content:space-between; }
+    .side-card h2 { margin:0; font-size:14px; }
+    .phase-list { display:grid; gap:7px; }
+    .phase { display:flex; justify-content:space-between; padding:9px 10px; border-radius:9px; background:#eeebe3; font-size:10px; }
+    .phase.release { color:white; background:var(--coral); }
+    .quality { font-size:11px; color:var(--muted); }
+    .quality b { color:var(--green); }
+
+    .trial-layout { height:100%; display:grid; grid-template-columns:1fr .72fr; gap:18px; }
+    .pose-card { padding:20px 22px; }
+    .trial-title { display:flex; align-items:start; justify-content:space-between; }
+    .score-pill { min-width:66px; padding:8px 12px; color:white; background:var(--green); border-radius:999px; text-align:center; font-size:12px; font-weight:900; }
+    .metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:13px 22px; margin-top:22px; }
+    .metric { display:grid; grid-template-columns:1fr auto; gap:5px 10px; font-size:11px; }
+    .metric span { color:var(--muted); }
+    .metric b { font-size:12px; }
+    .bar { grid-column:1/-1; height:6px; overflow:hidden; border-radius:6px; background:#e5e1d8; }
+    .bar i { display:block; height:100%; border-radius:inherit; background:var(--mint); }
+    .feedback { margin-top:21px; padding:13px 15px; border-left:4px solid var(--amber); border-radius:0 10px 10px 0; background:#f3eee3; font-size:12px; line-height:1.45; }
+    .result-card { position:relative; display:grid; place-items:center; overflow:hidden; }
+    .target { width:min(230px,70%); aspect-ratio:1; border-radius:50%; opacity:.55; background:repeating-radial-gradient(circle,#f2c64d 0 11%,#dc5d51 11% 22%,#5796b6 22% 33%,#28302d 33% 44%,#eee9dd 44% 50%); }
+    .impact { position:absolute; padding:7px 10px; border-radius:999px; color:white; background:rgba(23,33,27,.86); font-size:10px; font-weight:800; }
+    .impact.future { opacity:.75; }
+
+    nav { display:flex; align-items:center; justify-content:center; gap:7px; border-top:1px solid var(--line); background:#ece8df; }
+    .nav-arrow { width:34px; height:34px; border:0; border-radius:50%; color:white; background:var(--green); cursor:pointer; }
+    .tab { height:32px; padding:0 14px; border:0; border-radius:999px; color:var(--muted); background:transparent; font-size:10px; font-weight:800; cursor:pointer; }
+    .tab.active { color:white; background:var(--green); }
+    .counter { width:42px; color:var(--muted); font-size:10px; text-align:center; }
+
+    @media (max-width:700px) { .xr-panel { width:98vw; border-radius:16px; } .slide { padding:16px; } .quote p { font-size:13px; } .mini-stats { display:none; } svg { height:150px; } }
+  </style>
+</head>
+<body>
+  <main class="xr-panel" aria-label="ARTEMIS 최종 리포트">
+    <header>
+      <div class="brand"><div class="mark">A</div><div><b>ARTEMIS REPORT</b><span>3-shot training review</span></div></div>
+      <div class="session">SESSION A01 · 2026.08.03<br>01:42 · 센서 동기화 96%</div>
+    </header>
+
+    <section class="viewport">
+      <article class="slide active" data-label="요약">
+        <div class="summary-grid">
+          <div class="coach">
+            <div><div class="kicker">SESSION SUMMARY</div><h1>흔들림은 줄고,<br>릴리즈는 선명해졌어요.</h1></div>
+            <div class="quote"><p>세 번째 샷의 조준 구간이 가장 안정적이었습니다. 릴리즈 순간 오른쪽 어깨가 평균 <strong>3.1° 상승</strong>했으니, 다음 세션에서는 앵커 이후 어깨선 유지에 집중하세요.</p></div>
+          </div>
+          <div class="score-side">
+            <div class="total"><div><span>SESSION SCORE</span><b>26</b><span>30점 만점 · 평균 8.7</span></div></div>
+            <div class="mini-stats"><div class="mini"><span>평균 심박</span><b>91</b></div><div class="mini"><span>안정성</span><b>0.86</b></div><div class="mini"><span>스탠스</span><b>Square</b></div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide" data-label="센서">
+        <div class="sensor-layout">
+          <div class="chart-card">
+            <div class="chart-head"><div><div class="kicker">SENSOR TIMELINE</div><h1>세 발의 흐름</h1><p class="sub">심박과 자세 안정성을 릴리즈 시점 중심으로 표시</p></div><div class="legend"><span><i class="dot" style="background:var(--coral)"></i>심박</span><span><i class="dot" style="background:var(--mint)"></i>안정성</span></div></div>
+            <svg viewBox="0 0 700 225" role="img" aria-label="센서 시계열">
+              <g stroke="#dedbd1"><path d="M32 22H680M32 78H680M32 134H680M32 190H680"/></g>
+              <path d="M32 159C70 148 85 111 119 118S174 74 208 91S267 151 306 130S360 63 401 79S461 133 496 112S556 43 595 63S643 97 680 82" fill="none" stroke="#db765f" stroke-width="3"/>
+              <path d="M32 139C70 131 87 155 120 133S174 111 208 119S267 87 306 101S358 117 399 88S458 96 496 79S554 99 593 67S640 75 680 53" fill="none" stroke="#73c7a1" stroke-width="3"/>
+              <g fill="#214d3d"><circle cx="208" cy="91" r="5"/><circle cx="401" cy="79" r="5"/><circle cx="595" cy="63" r="5"/></g>
+              <g><text x="185" y="58">RELEASE 1</text><text x="378" y="46">RELEASE 2</text><text x="572" y="30">RELEASE 3</text><text x="30" y="211">0:00</text><text x="333" y="211">0:51</text><text x="650" y="211">1:42</text></g>
+            </svg>
+          </div>
+          <aside class="side-card"><div><h2>TRIAL 3 구간</h2><p class="sub">가장 안정적인 샷</p></div><div class="phase-list"><div class="phase"><span>DRAW</span><b>4.8s</b></div><div class="phase"><span>ANCHOR</span><b>1.2s</b></div><div class="phase"><span>AIM</span><b>3.4s</b></div><div class="phase release"><span>RELEASE</span><b>0.3s</b></div></div><div class="quality">데이터 품질 <b>GOOD · 96%</b></div></aside>
+        </div>
+      </article>
+
+      <article class="slide trial-slide" data-label="1번 샷"></article>
+      <article class="slide trial-slide" data-label="2번 샷"></article>
+      <article class="slide trial-slide" data-label="3번 샷"></article>
+    </section>
+
+    <nav aria-label="리포트 페이지">
+      <button class="nav-arrow" id="prev" aria-label="이전">‹</button>
+      <div id="tabs"></div>
+      <span class="counter" id="counter"></span>
+      <button class="nav-arrow" id="next" aria-label="다음">›</button>
+    </nav>
+  </main>
+
+  <script>
+    const trials = [
+      {n:1,score:8,elbow:151.2,shoulder:4.8,torso:2.6,anchor:.19,stability:.78,note:'앵커 이후 어깨 높이가 상승했습니다.'},
+      {n:2,score:8,elbow:154.7,shoulder:3.6,torso:2.1,anchor:.17,stability:.84,note:'상체는 안정적이지만 팔꿈치 정렬을 확인하세요.'},
+      {n:3,score:10,elbow:158.1,shoulder:1.9,torso:1.4,anchor:.15,stability:.91,note:'세 샷 중 가장 안정적인 릴리즈였습니다.'}
+    ];
+    const metric=(label,value,width)=>`<div class="metric"><span>${label}</span><b>${value}</b><div class="bar"><i style="width:${width}%"></i></div></div>`;
+    document.querySelectorAll('.trial-slide').forEach((el,i)=>{const t=trials[i];el.innerHTML=`<div class="trial-layout"><section class="pose-card"><div class="trial-title"><div><div class="kicker">RELEASE SNAPSHOT · TRIAL ${t.n}</div><h1>${t.n}번 샷 자세</h1><p class="sub">릴리즈 순간의 대표 측정값</p></div><span class="score-pill">${t.score}점</span></div><div class="metrics">${metric('드로우 팔꿈치',t.elbow+'°',t.elbow/1.7)}${metric('어깨 기울기',t.shoulder+'°',100-t.shoulder*10)}${metric('상체 기울기',t.torso+'°',100-t.torso*12)}${metric('앵커 거리',t.anchor.toFixed(2),105-t.anchor*180)}${metric('안정성',t.stability.toFixed(2),t.stability*100)}${metric('최대 심박',(88+t.n*5)+' BPM',70+t.n*5)}</div><div class="feedback">${t.note}</div></section><aside class="result-card"><div class="target"></div><span class="impact future">탄착 좌표 · 추후 연동</span></aside></div>`});
+
+    const slides=[...document.querySelectorAll('.slide')], tabs=document.querySelector('#tabs'); let current=0;
+    slides.forEach((s,i)=>{const b=document.createElement('button');b.className='tab'+(i===0?' active':'');b.textContent=s.dataset.label;b.onclick=()=>show(i);tabs.appendChild(b)});
+    const buttons=[...tabs.children], counter=document.querySelector('#counter');
+    function show(i){current=(i+slides.length)%slides.length;slides.forEach((s,n)=>s.classList.toggle('active',n===current));buttons.forEach((b,n)=>b.classList.toggle('active',n===current));counter.textContent=`${current+1} / ${slides.length}`}
+    document.querySelector('#prev').onclick=()=>show(current-1); document.querySelector('#next').onclick=()=>show(current+1);
+    window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')show(current-1);if(e.key==='ArrowRight')show(current+1)}); show(0);
+  </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "type": "session_report",
+  "payload": {
+    "report_version": 1,
+    "session_id": "practice-001",
+    "code": "SESSION_REPORT",
+    "message": "3번 샷에서 최고 점수 10점을 기록했습니다. Trial별 릴리즈 자세와 센서 흐름을 함께 확인하세요.",
+    "shot_count": 3,
+    "total_score": 26,
+    "average_score": 8.666666666666666,
+    "strengths": ["후반 trial의 수행 결과를 유지했습니다."],
+    "weaknesses": ["Trial별 릴리즈 자세 편차를 확인하세요."],
+    "recommendations": ["기준 자세와 겹친 관절 차이를 다음 세션에서 줄여보세요."],
+    "sensor_availability": {
+      "pose": true,
+      "polar_h10": true,
+      "respiration": true
+    },
+    "pages": [
+      {
+        "page_index": 0,
+        "kind": "summary",
+        "trial_number": null,
+        "url": "/reports/practice-001/summary.png",
+        "mime_type": "image/png",
+        "width": 1600,
+        "height": 900
+      },
+      {
+        "page_index": 1,
+        "kind": "sensor",
+        "trial_number": null,
+        "url": "/reports/practice-001/sensor.png",
+        "mime_type": "image/png",
+        "width": 1600,
+        "height": 900
+      },
+      {
+        "page_index": 2,
+        "kind": "trial",
+        "trial_number": 1,
+        "url": "/reports/practice-001/trial-1.png",
+        "mime_type": "image/png",
+        "width": 1600,
+        "height": 900
+      },
+      {
+        "page_index": 3,
+        "kind": "trial",
+        "trial_number": 2,
+        "url": "/reports/practice-001/trial-2.png",
+        "mime_type": "image/png",
+        "width": 1600,
+        "height": 900
+      },
+      {
+        "page_index": 4,
+        "kind": "trial",
+        "trial_number": 3,
+        "url": "/reports/practice-001/trial-3.png",
+        "mime_type": "image/png",
+        "width": 1600,
+        "height": 900
+      }
+    ]
+  }
+}
