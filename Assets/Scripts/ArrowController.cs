@@ -201,19 +201,6 @@ public class ArrowController : MonoBehaviour
     [SerializeField]
     private Transform bowRoot;
 
-    [Header("Guaranteed Random Target Hit")]
-    [SerializeField]
-    private TargetScoring targetScoring;
-
-    [Range(0.1f, 0.95f)]
-    [SerializeField]
-    private float randomTargetRadiusRatio = 0.85f;
-
-    [Min(1f)]
-    [SerializeField]
-    private float guaranteedHitMinimumSpeedMps = 35f;
-
-
     [Header("Optional Audio")]
 
     [SerializeField]
@@ -236,11 +223,6 @@ public class ArrowController : MonoBehaviour
         SetVisualArrowActive(false);
         ApplyXrSafeMaterials(visualArrow);
         CacheBowColliders();
-
-        if (targetScoring == null)
-        {
-            targetScoring = FindFirstObjectByType<TargetScoring>();
-        }
 
         if (releaseAudioSource != null)
         {
@@ -642,19 +624,6 @@ public class ArrowController : MonoBehaviour
                 }
         }
 
-        Vector3 randomHitPoint;
-
-        if (TryApplyGuaranteedRandomHit(
-                projectileRigidbody,
-                arrowFlight,
-                ref launchDirection,
-                ref finalLaunchSpeedMps,
-                out randomHitPoint))
-        {
-            appliedLaunchMode = "RANDOM_GUARANTEED_HIT";
-        }
-
-
         if (releaseAudioSource != null)
         {
             releaseAudioSource.Play();
@@ -687,9 +656,7 @@ public class ArrowController : MonoBehaviour
             + $"\nStored Energy: {launchData.storedEnergyJ:F2} J"
             + $"\nTransferred Energy: "
             + $"{launchData.transferredEnergyJ:F2} J"
-            + (randomHitPoint != Vector3.zero
-                ? $"\nRandom Target: {randomHitPoint}"
-                : string.Empty),
+,
             this
         );
 
@@ -719,68 +686,6 @@ public class ArrowController : MonoBehaviour
             launchSpeedMps;
 #endif
     }
-
-    private bool TryApplyGuaranteedRandomHit(
-        Rigidbody projectileRigidbody,
-        ArrowFlight arrowFlight,
-        ref Vector3 launchDirection,
-        ref float launchSpeedMps,
-        out Vector3 randomHitPoint)
-    {
-        randomHitPoint = Vector3.zero;
-
-        if (targetScoring == null)
-        {
-            targetScoring = FindFirstObjectByType<TargetScoring>();
-        }
-
-        if (
-            targetScoring == null ||
-            !targetScoring.TryGetRandomHitPoint(
-                out randomHitPoint,
-                randomTargetRadiusRatio
-            )
-        )
-        {
-            Debug.LogWarning(
-                "[ArrowController] 랜덤 명중 좌표 생성 실패. 기존 방향으로 발사합니다.",
-                this
-            );
-            return false;
-        }
-
-        Vector3 displacement = randomHitPoint - projectileRigidbody.position;
-        float assistedSpeed = Mathf.Max(
-            launchSpeedMps,
-            guaranteedHitMinimumSpeedMps
-        );
-        float flightTime = Mathf.Max(
-            0.05f,
-            displacement.magnitude / assistedSpeed
-        );
-
-        Vector3 requiredVelocity =
-            (displacement -
-             0.5f * Physics.gravity * flightTime * flightTime) /
-            flightTime;
-
-        launchDirection = requiredVelocity.normalized;
-        launchSpeedMps = requiredVelocity.magnitude;
-
-        SetProjectileVelocity(
-            projectileRigidbody,
-            launchDirection,
-            launchSpeedMps
-        );
-
-        if (arrowFlight != null)
-        {
-            arrowFlight.AlignToDirection(launchDirection, spawnPoint.up);
-        }
-
-        return true;
-    }
-
 
     // =========================================================
     // 물리 데이터 계산
