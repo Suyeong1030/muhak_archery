@@ -655,8 +655,7 @@ public class ArrowController : MonoBehaviour
             + $"\nDraw Force: {launchData.drawForceN:F2} N"
             + $"\nStored Energy: {launchData.storedEnergyJ:F2} J"
             + $"\nTransferred Energy: "
-            + $"{launchData.transferredEnergyJ:F2} J"
-,
+            + $"{launchData.transferredEnergyJ:F2} J",
             this
         );
 
