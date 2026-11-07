@@ -22,17 +22,10 @@ public class ArrowTargetScoringBridge : MonoBehaviour
         TargetScoring hitScoring =
             collision.collider.GetComponentInParent<TargetScoring>();
 
+        // 과녁이 아닌 바닥·벽 등의 충돌은 점수로 처리하지 않습니다.
+        // 실제 과녁 오브젝트(또는 부모)에 TargetScoring이 있어야 합니다.
         if (hitScoring == null)
-            hitScoring = scoring;
-
-        if (hitScoring == null)
-        {
-            Debug.LogWarning(
-                "[ArrowTargetScoringBridge] 충돌한 오브젝트에서 TargetScoring을 찾지 못했습니다.",
-                this
-            );
             return;
-        }
 
         ContactPoint contact = collision.GetContact(0);
         int result = hitScoring.RegisterHit(contact.point);
