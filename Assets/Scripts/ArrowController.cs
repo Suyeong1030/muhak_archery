@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 /// <summary>
@@ -201,21 +201,6 @@ public class ArrowController : MonoBehaviour
     [SerializeField]
     private Transform bowRoot;
 
-    [Header("Arc Unity UDP Input")]
-
-    [Tooltip("활성화하면 arc_unity.py의 UDP shot 패킷으로 화살을 발사합니다.")]
-    [SerializeField]
-    private bool useArcUnityUdpInput = true;
-
-    [SerializeField]
-    private ArcUnityUdpReceiver arcUnityUdpReceiver;
-
-    [Header("Target Scoring")]
-
-    [Tooltip("점수 계산은 이 TargetScoring에 위임합니다.")]
-    [SerializeField]
-    private TargetScoring targetScoring;
-
     [Header("Optional Audio")]
 
     [SerializeField]
@@ -227,7 +212,6 @@ public class ArrowController : MonoBehaviour
     // =========================================================
 
     private Collider[] bowColliders;
-    private ArcUnityUdpReceiver.ArcUnityShotPayload pendingArcShot;
 
 
     // =========================================================
@@ -240,18 +224,6 @@ public class ArrowController : MonoBehaviour
         ApplyXrSafeMaterials(visualArrow);
         CacheBowColliders();
 
-        if (targetScoring == null)
-            targetScoring = FindFirstObjectByType<TargetScoring>();
-
-        if (useArcUnityUdpInput)
-        {
-            if (arcUnityUdpReceiver == null)
-                arcUnityUdpReceiver = GetComponent<ArcUnityUdpReceiver>();
-
-            if (arcUnityUdpReceiver == null)
-                arcUnityUdpReceiver = gameObject.AddComponent<ArcUnityUdpReceiver>();
-        }
-
         if (releaseAudioSource != null)
         {
             releaseAudioSource.playOnAwake = false;
@@ -262,9 +234,6 @@ public class ArrowController : MonoBehaviour
 
     private void OnEnable()
     {
-        if (arcUnityUdpReceiver != null)
-            arcUnityUdpReceiver.ShotReceived += HandleArcUnityShot;
-
         if (bowStringController == null)
         {
             Debug.LogWarning(
@@ -286,9 +255,6 @@ public class ArrowController : MonoBehaviour
 
     private void OnDisable()
     {
-        if (arcUnityUdpReceiver != null)
-            arcUnityUdpReceiver.ShotReceived -= HandleArcUnityShot;
-
         if (bowStringController == null)
             return;
 
@@ -371,10 +337,6 @@ public class ArrowController : MonoBehaviour
 
     private void HandleBowReleased(float strength)
     {
-        // UDP 입력 모드에서는 Python shot 패킷만 발사 트리거로 사용합니다.
-        if (useArcUnityUdpInput)
-            return;
-
         strength = Mathf.Clamp01(strength);
 
         SetVisualArrowActive(false);
@@ -390,38 +352,6 @@ public class ArrowController : MonoBehaviour
 
             return;
         }
-
-        FireProjectile(strength);
-    }
-
-
-    private void HandleArcUnityShot(
-        ArcUnityUdpReceiver.ArcUnityShotPayload shot)
-    {
-        if (!useArcUnityUdpInput || shot == null)
-            return;
-
-        pendingArcShot = shot;
-
-        float strength = Mathf.Clamp01(shot.draw_pct / 100f);
-        SetVisualArrowActive(false);
-
-        if (strength < minimumFireStrength)
-        {
-            pendingArcShot = null;
-            Debug.LogWarning(
-                $"[ArrowController] UDP 발사 강도가 최소값보다 낮습니다: {strength:F3}",
-                this
-            );
-            return;
-        }
-
-        Debug.Log(
-            $"[ArrowController] arc_unity.py 발사 패킷 수신: " +
-            $"shot_id={shot.shot_id}, draw={shot.draw_pct:F1}%, " +
-            $"speed={shot.speed_ms:F2}m/s",
-            this
-        );
 
         FireProjectile(strength);
     }
@@ -482,11 +412,8 @@ public class ArrowController : MonoBehaviour
         ArrowFlight arrowFlight =
             projectile.GetComponent<ArrowFlight>();
 
-        ArcUnityUdpReceiver.ArcUnityShotPayload arcShot = pendingArcShot;
-        pendingArcShot = null;
-
         Vector3 launchDirection =
-            GetArcUnityLaunchDirection(arcShot, spawnPoint.forward);
+            spawnPoint.forward.normalized;
 
         if (arrowFlight != null)
         {
@@ -542,17 +469,14 @@ public class ArrowController : MonoBehaviour
          * BowStringController.CurrentStretch를 그대로 사용합니다.
          */
         float drawLengthM =
-            arcShot != null
-                ? Mathf.Max(0f, arcShot.draw_cm / 100f)
-                : GetReleasedDrawLength();
+            GetReleasedDrawLength();
 
         /*
          * Strength 비율을 기준으로 현재 당김 힘을 근사합니다.
          */
         float drawForceN =
-            arcShot != null
-                ? Mathf.Max(0f, arcShot.force_n)
-                : maximumDrawForceN * strength;
+            maximumDrawForceN *
+            strength;
 
         /*
          * 선형 Force-Draw Curve를 가정한 저장 에너지:
@@ -700,41 +624,6 @@ public class ArrowController : MonoBehaviour
                 }
         }
 
-        // arc_unity.py의 계산 결과를 실제 Rigidbody 초기속도에 반영합니다.
-        // Python의 score 필드는 사용하지 않으며, 점수는 충돌 후 TargetScoring이 계산합니다.
-        if (arcShot != null)
-        {
-            finalLaunchSpeedMps = Mathf.Max(0f, arcShot.speed_ms);
-            SetProjectileVelocity(
-                projectileRigidbody,
-                launchDirection,
-                finalLaunchSpeedMps
-            );
-        }
-
-        if (targetScoring == null)
-            targetScoring = FindFirstObjectByType<TargetScoring>();
-
-        if (targetScoring != null)
-        {
-            targetScoring.RegisterShot();
-
-            ArrowTargetScoringBridge scoringBridge =
-                projectile.GetComponent<ArrowTargetScoringBridge>();
-
-            if (scoringBridge == null)
-                scoringBridge = projectile.AddComponent<ArrowTargetScoringBridge>();
-
-            scoringBridge.Initialize(targetScoring);
-        }
-        else
-        {
-            Debug.LogWarning(
-                "[ArrowController] TargetScoring을 찾지 못해 발사/충돌 점수가 기록되지 않습니다.",
-                this
-            );
-        }
-
         if (releaseAudioSource != null)
         {
             releaseAudioSource.Play();
@@ -775,47 +664,6 @@ public class ArrowController : MonoBehaviour
          * 발사 성공 이벤트를 발생시킵니다.
          */
         ArrowLaunched?.Invoke(launchData);
-    }
-
-
-    /// <summary>
-    /// Python 궤적 좌표계(x=좌우, y=높이, z=전방)를 Unity 월드 방향으로 변환합니다.
-    /// 궤적이 없으면 elevation/azimuth 값으로 방향을 복원합니다.
-    /// </summary>
-    private static Vector3 GetArcUnityLaunchDirection(
-        ArcUnityUdpReceiver.ArcUnityShotPayload shot,
-        Vector3 fallbackDirection)
-    {
-        if (shot == null)
-            return fallbackDirection.normalized;
-
-        if (shot.traj != null && shot.traj.Length >= 2)
-        {
-            var first = shot.traj[0];
-            var second = shot.traj[1];
-
-            Vector3 trajectoryDirection = new Vector3(
-                second.x - first.x,
-                second.y - first.y,
-                second.z - first.z
-            );
-
-            if (trajectoryDirection.sqrMagnitude > 0.000001f)
-                return trajectoryDirection.normalized;
-        }
-
-        float elevation = shot.elev_deg * Mathf.Deg2Rad;
-        float azimuth = shot.azim_deg * Mathf.Deg2Rad;
-
-        Vector3 reconstructed = new Vector3(
-            Mathf.Cos(elevation) * Mathf.Sin(azimuth),
-            Mathf.Sin(elevation),
-            Mathf.Cos(elevation) * Mathf.Cos(azimuth)
-        );
-
-        return reconstructed.sqrMagnitude > 0.000001f
-            ? reconstructed.normalized
-            : fallbackDirection.normalized;
     }
 
 
